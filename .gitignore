@@ -42,3 +42,8 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+# we output the csv to the run dir
+products.csv
+# librecalc (short for calculator btw) creates this file while it has a file open
+.~lock.products.csv#

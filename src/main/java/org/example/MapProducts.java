@@ -1,0 +1,163 @@
+package org.example;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class MapProducts {
+  public static ArrayList<Map<String, String>> getProductMaps(ArrayList<JsonObject> products) {
+    ArrayList<Map<String, String>> productMaps = new ArrayList<>();
+
+    for (JsonObject product : products) {
+      addProduct(product, productMaps);
+    }
+
+    return productMaps;
+  }
+
+  // lots of blehh
+  private static void addProduct(JsonObject product, ArrayList<Map<String, String>> productMaps) {
+    List<JsonElement> categories = product.get("categories").getAsJsonArray().asList();
+    String mainCategory = categories.isEmpty()
+            ? ""
+            : categories.getFirst().getAsJsonObject().get("name").getAsString();
+    String extraCategories =  categories.stream()
+            .skip(1)
+            .map(category -> category.getAsJsonObject().get("name").getAsString())
+            .collect(Collectors.joining(":"));
+
+    List<JsonElement> images = product.get("images").getAsJsonArray().asList();
+
+    List<JsonObject> variants = product.get("variants").getAsJsonArray().asList()
+            .stream().map(JsonElement::getAsJsonObject).collect(Collectors.toList());
+    JsonObject cheapestVariant = variants.stream()
+            .min(Comparator.comparingDouble(variant -> variant.get("price").getAsDouble()))
+            // even products with no variants set are sent with a single variant, W EKM
+            .orElseThrow();
+
+    List<JsonObject> additionalInfo = product.get("additionalInfo").getAsJsonArray().asList()
+            .stream().map(JsonElement::getAsJsonObject).toList();
+
+    Map<String, String> productMap = new LinkedHashMap<>();
+    productMap.put("Action", "Add Product");
+
+    String name = product.get("name").getAsString();
+    productMap.put("Name", name);
+    productMap.put("Description", product.get("description").getAsString());
+
+    productMap.put("CategoryPath", mainCategory);
+    productMap.put("CategoryManagement", extraCategories);
+
+    productMap.put("Image1Address", getImage(images, 0));
+    productMap.put("Image2Address", getImage(images, 1));
+    productMap.put("Image3Address", getImage(images, 2));
+    productMap.put("Image4Address", getImage(images, 3));
+    productMap.put("Image5Address", getImage(images, 4));
+
+    JsonElement pageTitle = product.get("pageTitle");
+    productMap.put("MetaTitle", pageTitle.isJsonNull() ? name : pageTitle.getAsString());
+    productMap.put("MetaDescription", product.get("meta").getAsString());
+    String keywords = product.get("keywords").getAsJsonArray().asList()
+            .stream()
+            .map(JsonElement::getAsString)
+            .collect(Collectors.joining(","));
+    productMap.put("MetaKeywords", keywords);
+
+    productMap.put("Price", cheapestVariant.getAsJsonObject().get("price").getAsString());
+
+    String aka = getTab("Also Known As", additionalInfo);
+    productMap.put("Tab:Also Known As", String.valueOf(aka != null));
+    productMap.put("Tab Content:Also Known As", aka);
+
+    String origin = getTab("Origin", additionalInfo);
+    productMap.put("Tab:Origin", String.valueOf(origin != null));
+    productMap.put("Tab Content:Origin", origin);
+
+    String preparation = getTab("Preparation", additionalInfo);
+    productMap.put("Tab:Preparation", String.valueOf(preparation != null));
+    productMap.put("Tab Content:Preparation", preparation);
+
+    String usage = getTab("Usage", additionalInfo);
+    productMap.put("Tab:Usage", String.valueOf(usage != null));
+    productMap.put("Tab Content:Usage", usage);
+
+    String storage = getTab("Storage", additionalInfo);
+    productMap.put("Tab:Storage", String.valueOf(storage != null));
+    productMap.put("Tab Content:Storage", storage);
+
+    String averageWeight = getTab("Average Weight", additionalInfo);
+    productMap.put("Tab:Average Weight", String.valueOf(averageWeight != null));
+    productMap.put("Tab Content:Average Weight", averageWeight);
+
+    String furtherInfo = getTab("Further Info", additionalInfo);
+    productMap.put("Tab:Further Info", String.valueOf(furtherInfo != null));
+    productMap.put("Tab Content:Further Info", furtherInfo);
+
+    productMaps.add(productMap);
+
+    if (variants.size() == 1) return;
+
+    addProductVariants(product, variants, cheapestVariant, productMaps);
+  }
+
+  private static String getImage(List<JsonElement> images, int i) {
+    return i >= images.size()
+            ? null
+            : images.get(i).getAsJsonObject().get("url").getAsString();
+  }
+
+  private static String getTab(String name, List<JsonObject> additionalInfo) {
+    JsonObject tabObject = additionalInfo.stream()
+            .filter(tab -> tab.get("title").getAsString().equalsIgnoreCase(name))
+            .findFirst().orElse(null);
+    if (tabObject == null) return null;
+
+    String description = tabObject.get("description").getAsString();
+    return isHtmlEmpty(description) ? null : description;
+  }
+
+  private static boolean isHtmlEmpty(String html) {
+    // remove tags, cause they dont contain visible text (ig they can have images, but they dont for this case)
+    html = html.replaceAll("<[^>]*>", "");
+    html = html.trim();
+
+    // replace n/a if the string starts with it
+    html = html.replaceAll("^[Nn]/[Aa]", "");
+    // clear leading punctuation
+    html = html.replaceAll("^[.\\-_]*", "");
+
+    return html.trim().isEmpty();
+  }
+
+
+  private static void addProductVariants(
+          JsonObject product,
+          List<JsonObject> variants,
+          JsonObject cheapestVariant,
+          List<Map<String, String>> productMaps
+  ) {
+    for (JsonObject variant : variants) {
+      Map<String, String> variantMap = new LinkedHashMap<>();
+
+      variantMap.put("Action", "Add Product Variant");
+      variantMap.put("Name", product.get("name").getAsString());
+
+      variantMap.put("Price", variant.get("price").getAsString());
+
+      variantMap.put("VariantNames", "Choose your quantity");
+      variantMap.put("VariantTypes", "DROPDOWN");
+
+      JsonObject options = variant.get("optionsValues").getAsJsonObject();
+      // variant items are stored as  "optionsValues": {"Choose your quantity;": "2kg"}
+      variantMap.put("VariantItem1", options.get(options.keySet().stream().findFirst().orElseThrow()).getAsString());
+
+      // they fr use "Yes" and "No" :sob: https://tags.ekm.com/ states:
+      // "A true or false answer either shown as true|false or yes|no or 1|0. EKM typically uses yes or no."
+      variantMap.put("VariantDefault", variant.equals(cheapestVariant) ? "Yes" : "No");
+
+      productMaps.add(variantMap);
+    }
+  }
+}
