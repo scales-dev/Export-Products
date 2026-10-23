@@ -3,13 +3,11 @@ package org.example;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class RequestItems {
-  private static final String SITE = "https://myexoticfruit.com";
-
   private static final String API = "https://webshop.one.com/api/v2/cluster/myexoticfruit.com/domain/myexoticfruit.com/product";
   private static final int ITEMS_PER_REQUEST = 70;
 
@@ -21,21 +19,11 @@ public class RequestItems {
           "filters", "{}"
   );
 
-  private static final Map<String, String> ONE_COM_HEADERS = Map.of(
-          "x-one-ws-client-type", "WebshopShopfront",
-          "x-one-ws-preview", "false",
-          "Content-Type", "application/json",
-          "Referer", SITE+"/",
-          "Origin", SITE,
-          "Accept", "application/json, text/plain, */*",
-          "User-Agent", "Mozilla/5.0"
-  );
 
+  public static Map<String, JsonObject> getProducts() {
+    HashMap<String, JsonObject> items = new LinkedHashMap<>();
 
-  public static ArrayList<JsonObject> getProducts() {
-    ArrayList<JsonObject> items = new ArrayList<>();
-
-    int totalItems = NetworkUtil.requestURL(API, Map.of(), ONE_COM_HEADERS)
+    int totalItems = NetworkUtil.requestURL(API, Map.of(), Main.ONE_COM_HEADERS)
             .getAsJsonObject("data")
             .get("totalCount").getAsInt();
 
@@ -43,11 +31,12 @@ public class RequestItems {
     for(int i = 0; i < totalItems;) {
       params.put("pageOffset", String.valueOf(i));
 
-      for (JsonElement product : NetworkUtil.requestURL(API, params, ONE_COM_HEADERS)
+      for (JsonElement product : NetworkUtil.requestURL(API, params, Main.ONE_COM_HEADERS)
               .getAsJsonObject("data")
               .getAsJsonArray("result")) {
         i++;
-        items.add(product.getAsJsonObject());
+        JsonObject productObject = product.getAsJsonObject();
+        items.put(productObject.get("id").getAsString(), productObject);
       }
     }
 

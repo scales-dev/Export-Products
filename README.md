@@ -216,3 +216,6 @@ Requesting this URL returns a HUGE list of products, each looking like this (sur
   ]
 }
 ```
+
+To get the related products we have to request a different API for EVERY PRODUCT.
+But that doesn't take too long, overall this takes ~1 minute for me to request all relevant data on 491 products.
