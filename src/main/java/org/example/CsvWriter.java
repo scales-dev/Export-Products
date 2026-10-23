@@ -26,6 +26,9 @@ public class CsvWriter {
       for (Map<String, String> item : csv) {
         csvPrinter.printRecord(headers.stream().map(item::get).toList());
       }
+
+      writer.flush();
+      writer.close();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

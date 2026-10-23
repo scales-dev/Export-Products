@@ -20,9 +20,7 @@ public class MapProducts {
   // lots of blehh
   private static void addProduct(JsonObject product, ArrayList<Map<String, String>> productMaps) {
     List<JsonElement> categories = product.get("categories").getAsJsonArray().asList();
-    String mainCategory = categories.isEmpty()
-            ? ""
-            : categories.getFirst().getAsJsonObject().get("name").getAsString();
+    String mainCategory = getCategoryPath(categories);
     String extraCategories =  categories.stream()
             .skip(1)
             .map(category -> category.getAsJsonObject().get("name").getAsString())
@@ -50,11 +48,11 @@ public class MapProducts {
     productMap.put("CategoryPath", mainCategory);
     productMap.put("CategoryManagement", extraCategories);
 
-    productMap.put("Image1Address", getImage(images, 0));
-    productMap.put("Image2Address", getImage(images, 1));
-    productMap.put("Image3Address", getImage(images, 2));
-    productMap.put("Image4Address", getImage(images, 3));
-    productMap.put("Image5Address", getImage(images, 4));
+    productMap.put("Image1", getImage(images, 0));
+    productMap.put("Image2", getImage(images, 1));
+    productMap.put("Image3", getImage(images, 2));
+    productMap.put("Image4", getImage(images, 3));
+    productMap.put("Image5", getImage(images, 4));
 
     JsonElement pageTitle = product.get("pageTitle");
     productMap.put("MetaTitle", pageTitle.isJsonNull() ? name : pageTitle.getAsString());
@@ -68,38 +66,37 @@ public class MapProducts {
     productMap.put("Price", cheapestVariant.getAsJsonObject().get("price").getAsString());
 
     String aka = getTab("Also Known As", additionalInfo);
-    productMap.put("Tab:Also Known As", String.valueOf(aka != null));
     productMap.put("Tab Content:Also Known As", aka);
 
     String origin = getTab("Origin", additionalInfo);
-    productMap.put("Tab:Origin", String.valueOf(origin != null));
     productMap.put("Tab Content:Origin", origin);
 
     String preparation = getTab("Preparation", additionalInfo);
-    productMap.put("Tab:Preparation", String.valueOf(preparation != null));
     productMap.put("Tab Content:Preparation", preparation);
 
     String usage = getTab("Usage", additionalInfo);
-    productMap.put("Tab:Usage", String.valueOf(usage != null));
     productMap.put("Tab Content:Usage", usage);
 
     String storage = getTab("Storage", additionalInfo);
-    productMap.put("Tab:Storage", String.valueOf(storage != null));
     productMap.put("Tab Content:Storage", storage);
 
     String averageWeight = getTab("Average Weight", additionalInfo);
-    productMap.put("Tab:Average Weight", String.valueOf(averageWeight != null));
     productMap.put("Tab Content:Average Weight", averageWeight);
 
     String furtherInfo = getTab("Further Info", additionalInfo);
-    productMap.put("Tab:Further Info", String.valueOf(furtherInfo != null));
     productMap.put("Tab Content:Further Info", furtherInfo);
 
     productMaps.add(productMap);
 
     if (variants.size() == 1) return;
 
-    addProductVariants(product, variants, cheapestVariant, productMaps);
+    addProductVariants(product, mainCategory, variants, cheapestVariant, productMaps);
+  }
+
+  private static String getCategoryPath(List<JsonElement> categories) {
+    return categories.isEmpty()
+            ? "Home > Shop Online"
+            : "Home > Shop Online > " + categories.getFirst().getAsJsonObject().get("name").getAsString();
   }
 
   private static String getImage(List<JsonElement> images, int i) {
@@ -123,8 +120,12 @@ public class MapProducts {
     html = html.replaceAll("<[^>]*>", "");
     html = html.trim();
 
+    // in case you (like me) hadnt heard of (?i) before https://stackoverflow.com/a/7660977
     // replace n/a if the string starts with it
-    html = html.replaceAll("^[Nn]/[Aa]", "");
+    html = html.replaceAll("^(?i)n/a", "");
+    // ditto for tbc
+    html = html.replaceAll("^(?i)tbc", "");
+
     // clear leading punctuation
     html = html.replaceAll("^[.\\-_]*", "");
 
@@ -134,6 +135,7 @@ public class MapProducts {
 
   private static void addProductVariants(
           JsonObject product,
+          String category,
           List<JsonObject> variants,
           JsonObject cheapestVariant,
           List<Map<String, String>> productMaps
@@ -142,7 +144,9 @@ public class MapProducts {
       Map<String, String> variantMap = new LinkedHashMap<>();
 
       variantMap.put("Action", "Add Product Variant");
+
       variantMap.put("Name", product.get("name").getAsString());
+      variantMap.put("CategoryPath", category);
 
       variantMap.put("Price", variant.get("price").getAsString());
 
