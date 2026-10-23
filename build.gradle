@@ -11,6 +11,10 @@ repositories {
 
 dependencies {
     implementation 'com.google.code.gson:gson:2.14.0'
+
+    // i love u lombok
+    compileOnly("org.projectlombok:lombok:1.18.48")
+    annotationProcessor("org.projectlombok:lombok:1.18.48")
 }
 
 test {
